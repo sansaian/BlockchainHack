@@ -10,12 +10,13 @@ contract Main  {
     //не забудь про модификаторы
     //проверить есть ли такой пользователь в нашей системе
 
+    address sertCentrAdress;
     /*/
      *  Events
     /*/
     event LogetDealAddress(address pk_sender, address smartDeal);
     event LogResultCreateSmartDeal(address pk_sender, address smartDeal);
-
+    event LogAddress(address);
     /*/
      *  Public functions
     /*/
@@ -41,10 +42,20 @@ contract Main  {
     function createSmartDeal(string _docHash,string _url,address _sender,address _recipient) returns (address) {
          //todo проверка есть ли такой id и хэш сделать модификатором
 
-         dealStorage[_sender] = new SmartDeal(_docHash,_url, _sender, _recipient);
+         if(sertCentrAdress!=0x0){
+             SertificationCentr sertCentr = SertificationCentr(sertCentrAdress);
+             if(sertCentr.checkUser(_sender))
+                dealStorage[_sender] = new SmartDeal(_docHash,_url, _sender, _recipient);
        //to do логер
       // check create contract
+      }
         return dealStorage[_sender];
+    }
+
+    function createSertificationCentr() returns(address){
+        sertCentrAdress = new SertificationCentr();
+        LogAddress(sertCentrAdress);
+        return sertCentrAdress;
     }
         // modifiers
     modifier isOwner {
@@ -124,10 +135,12 @@ contract SertificationCentr {
      *  Events
     /*/
     event LogeUserInfo(address,string,string);
+    event LogCheckUSer(address);
     /*/
      *  Structs
     /*/
     struct  InfoUser {
+        address userAddress;
         string  telegrId;
         string name;
         string definition;
@@ -142,17 +155,18 @@ contract SertificationCentr {
         return (infoUserStruct.telegrId,infoUserStruct.name,infoUserStruct.definition);
     }
     //todo регистрация пользователя
+
     //todo только владелец
     function registrationUser(address _userAddr,string telegrId,
                         string name,string definition){
 
     }
-    //todo проверка есть ли польхователь в системе
-    //проверка количества пользователей
-    function checkCountUser(uint _count) constant returns(bool){
-        if(countUser==_count){
+    function checkUser(address _user)returns (bool){
+        InfoUser infoUserStruct = userStorage[_user];
+        //todo этот if проверить
+        if(infoUserStruct.userAddress!=0x0){
             return true;
-    }
+        }
         return false;
     }
 

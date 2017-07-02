@@ -6,58 +6,58 @@ contract Main  {
     /*/
     address private owner;
     mapping (address => address) private dealStorage;
-    //todo смарт контракт certificationCenter
-    //не забудь про модификаторы
-    //проверить есть ли такой пользователь в нашей системе
+    address public sertCentrAdress;
 
-    address sertCentrAdress;
     /*/
      *  Events
     /*/
     event LogetDealAddress(address pk_sender, address smartDeal);
     event LogResultCreateSmartDeal(address pk_sender, address smartDeal);
     event LogAddress(address);
+
+    /*/
+     *  Сonstructor
+    /*/
+    function Main(){
+        owner = msg.sender;
+    }
+
     /*/
      *  Public functions
     /*/
-
     // @dev Returns address DealsmartContract,which was created by the sender
     //if return value == 0x0 it means we have not inicialize deal
     // @param _object_id Object id for presale tokens
-
-
-    //todo должен быть модификатор isowner
-    function getAddress(address _senderDoc)constant returns (address) {
+    function getAddress(address _senderDoc) isOwner constant returns (address) {
        LogetDealAddress(_senderDoc,  dealStorage[_senderDoc]);
         return dealStorage[_senderDoc];
     }
 
     // @dev Returns address cmartContract
     // @param _docHash hash document of real Contract
-    // @param sender - the counterparty who send document
+    // @param sender  the counterparty who send document
     // @param _recipient the counterparty who shall sign the document
-
-    //todo можно сделать проверку типо есть ли отправитель в другом смартконтракте
-    //todo должен быть модификатор isowner
-    function createSmartDeal(string _docHash,string _url,address _sender,address _recipient) returns (address) {
-         //todo проверка есть ли такой id и хэш сделать модификатором
-
-         if(sertCentrAdress!=0x0){
+    function createSmartDeal(string _docHash,string _url,address _sender,address _recipient)
+    isOwner returns (address) {
+         if(sertCentrAdress!= 0x0){
              SertificationCentr sertCentr = SertificationCentr(sertCentrAdress);
              if(sertCentr.checkUser(_sender))
                 dealStorage[_sender] = new SmartDeal(_docHash,_url, _sender, _recipient);
-       //to do логер
-      // check create contract
+
       }
         return dealStorage[_sender];
     }
 
-    function createSertificationCentr() returns(address){
-        sertCentrAdress = new SertificationCentr();
+    // @dev create SmartContract SertificationCentr and return its address
+    function createSertificationCentr() isOwner returns(address){
+        sertCentrAdress = new SertificationCentr(owner);
         LogAddress(sertCentrAdress);
         return sertCentrAdress;
     }
-        // modifiers
+
+    /*/
+     *  Modifiers
+    /*/
     modifier isOwner {
         if (msg.sender == owner)
         _;
@@ -66,6 +66,7 @@ contract Main  {
 }
 
 contract SmartDeal {
+
     /*/
      *  Contract fields
     /*/
@@ -73,7 +74,6 @@ contract SmartDeal {
     address public sender;
     string public docHash;
     string public url="";
-    //todo сделать enum
     bool public isStatus=false;
     SetSign public setSign;
 
@@ -84,8 +84,14 @@ contract SmartDeal {
         bool isSignSender;
         bool isRecipient;
     }
+
     /*/
-     *  Public functions
+     *  Events
+    /*/
+    event LogetDealAddress(bool);
+
+    /*/
+     *  Сonstructor
     /*/
     function SmartDeal(string _docHash,string _url,address _sender,address _recipient) {
         url = _url;
@@ -97,12 +103,14 @@ contract SmartDeal {
     }
 
 
-    //todo не предусмотренно про передоговоры
-    function signDoc(string _docHash) returns (bool){
-        //todo проверить хэш документа
+    /*/
+     *  Public functions
+    /*/
+    // @dev the counterparty sign docs
+    // @param _docHash hash document of real Contract
+    function signDoc(string _docHash) isSenderAndisRecipient returns (bool){
         if(sha3(docHash) ==sha3(_docHash)){
-        //todo логирование
-        //check it is sender
+
         if(msg.sender==sender)
         {
             setSign.isSignSender=true;
@@ -111,31 +119,44 @@ contract SmartDeal {
         {
             setSign.isRecipient=true;
         }}
-        return checkStatus();
+        bool result = checkStatus();
+        LogetDealAddress(result);
+        return result;
     }
-    //todo должна быть call!!!!!!!
+
     function checkStatus() returns (bool) {
-        if(setSign.isSignSender || setSign.isRecipient)
+        if(setSign.isSignSender && setSign.isRecipient)
         {
-            return isStatus=false;
+            return isStatus=true;
         }
         return false;
     }
-    //todo модификатор isSender isRecipient
 
+    /*/
+     *  Modifiers
+    /*/
+    modifier isSenderAndisRecipient {
+        if (msg.sender == recipient ||msg.sender == sender)
+        _;
+    }
 
 }
 contract SertificationCentr {
+
     /*/
      *  Contract fields
     /*/
     mapping (address => InfoUser) private userStorage;
     uint countUser;
+    address private owner;
+
     /*/
      *  Events
     /*/
     event LogeUserInfo(address,string,string);
     event LogCheckUSer(address);
+    event LigIsSuccessOperation(bool);
+
     /*/
      *  Structs
     /*/
@@ -143,31 +164,56 @@ contract SertificationCentr {
         address userAddress;
         string  telegrId;
         string name;
-        string definition;
+        string descriptions;
     }
+
+    /*/
+     *  Сonstructor
+    /*/
+    function SertificationCentr(address _owner){
+        owner = _owner;
+    }
+
     /*/
      *  Public functions
     /*/
+    // @dev get iniformation about account
+    // @param _user  user's address
     function getInfo(address _user) constant returns (string,string,string){
         //todo проверить на null
         InfoUser infoUserStruct = userStorage[_user];
         LogeUserInfo(_user,infoUserStruct.telegrId,infoUserStruct.name);
-        return (infoUserStruct.telegrId,infoUserStruct.name,infoUserStruct.definition);
+        return (infoUserStruct.telegrId,infoUserStruct.name,infoUserStruct.descriptions);
     }
-    //todo регистрация пользователя
 
-    //todo только владелец
-    function registrationUser(address _userAddr,string telegrId,
-                        string name,string definition){
-
+    // @dev registration user(or organization) in our system
+    // @param _userAddr  user's address
+    // @param _telegrId  id in telegram or another message
+    // @param _name  name of organization
+    // @param _description  another information
+    function registrationUser(address _userAddr,string _telegrId,
+                        string _name,string _description) isOwner{
+     //todo логирование
+     // todo проверить на не пустые поля
+     userStorage[_userAddr].userAddress = _userAddr;
+     userStorage[_userAddr].telegrId = _telegrId;
+     userStorage[_userAddr].name = _name;
+     userStorage[_userAddr].descriptions = _description;
+     LigIsSuccessOperation(true);
     }
+
+    // @dev the function checks whether a user in our system
+    // @param _user  user's address
     function checkUser(address _user)returns (bool){
         InfoUser infoUserStruct = userStorage[_user];
-        //todo этот if проверить
         if(infoUserStruct.userAddress!=0x0){
             return true;
         }
         return false;
     }
 
+    modifier isOwner {
+        if (msg.sender == owner)
+        _;
+    }
 }
